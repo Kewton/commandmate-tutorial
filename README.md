@@ -24,7 +24,25 @@ https://github.com/Kewton/commandmate-tutorial.git
 It lands inside CommandMate's configured root directory and shows up as a
 session.
 
-## Step 2 — Let an agent fix a failing test
+## Step 2 — Run it and watch it in the browser
+
+Start the app:
+
+```bash
+npm start
+```
+
+It listens on **port 4173**. Register it in CommandMate under **External Apps**
+with a path prefix, and CommandMate will proxy it — no separate tab, and it
+works from your phone too.
+
+The heading is missing its exclamation mark:
+
+> # Hello, CommandMate
+
+That is bug number one, and you can see it. Leave the page open.
+
+## Step 3 — Let an agent fix it, then restart
 
 Two tests fail on purpose:
 
@@ -44,28 +62,21 @@ Open the session and ask your agent:
 
 > `npm test` fails. Fix the first failure only, then run the tests again.
 
-The fix is one character in `src/greet.js`. The point is not the difficulty —
-it is watching the agent run the tests, change the code, and re-run them while
-you watch from the browser (or your phone).
+The fix is one character in `src/greet.js`. The point is not the difficulty — it
+is watching the agent run the tests, change the code, and re-run them while you
+watch from the browser (or your phone).
 
-## Step 3 — See the change in the browser
+**Now restart the app** (`Ctrl+C`, then `npm start` again) and reload the page:
 
-Start the app:
+> # Hello, CommandMate!
 
-```bash
-npm start
-```
+That is the loop: **an agent changes code → you restart → you see the result.**
 
-It listens on **port 4173**. Register it in CommandMate under **External Apps**
-with a path prefix, and CommandMate will proxy it — no separate tab, and it
-works from your phone too.
-
-The heading on the page comes from the same `greet()` you just fixed:
-
-- Before: `Hello, CommandMate`
-- After: `Hello, CommandMate!`
-
-That is the loop: **an agent changes code → you see the result.**
+> **Why the restart?** `src/server.js` imports `greet` once, when the process
+> starts, so a running server keeps serving the old code no matter what is on
+> disk. Nothing here reloads for you. This is not a quirk of the tutorial — it
+> is the same reason a real dev server needs restarting when you change code it
+> loaded at boot.
 
 ## Step 4 — Go parallel with a worktree
 
@@ -104,8 +115,8 @@ Two branches, two agents, one browser.
 | Step | CommandMate feature |
 |---|---|
 | 1 | Clone a repository into the managed root |
-| 2 | Run an agent CLI in a session, from any browser |
-| 3 | External Apps — proxy your dev server through CommandMate |
+| 2 | External Apps — proxy your dev server through CommandMate |
+| 3 | Run an agent CLI in a session, from any browser |
 | 4 | One session per worktree, running in parallel |
 
 ## Notes
