@@ -1,0 +1,12 @@
+{
+  "name": "commandmate-tutorial",
+  "version": "1.0.0",
+  "description": "A tiny app for learning CommandMate. It has bugs on purpose.",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.0.0" },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  }
+}
