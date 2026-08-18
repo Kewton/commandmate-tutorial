@@ -1,0 +1,20 @@
+version: 1
+title: "shout() uppercases the greeting"
+goal: |
+  `npm run test:shout` fails. Implement shout() in src/greet.js so it returns the
+  greeting uppercased, then run the tests again.
+  Do not touch greet().
+scope:
+  allow: ["src/greet.js"]
+  deny: ["test/**", ".commandmate/**"]
+verify:
+  gates: [issue-shout]
+  gateDefinitions:
+    - id: issue-shout
+      command: npm run test:shout
+      timeoutSec: 120
+autoYes:
+  mode: off
+success:
+  requireWorkEvidence: true
+  requireScopeClean: true

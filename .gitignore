@@ -1,2 +1,10 @@
 node_modules/
 *.log
+
+# CommandMate keeps its runtime data here. The contract and the verification
+# gates are part of the repository; everything else is local state.
+.commandmate/*
+!.commandmate/verify.yaml
+!.commandmate/tasks/
+.commandmate/tasks/*
+!.commandmate/tasks/*.yaml
