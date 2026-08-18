@@ -1,0 +1,19 @@
+version: 1
+title: "greet() ends with an exclamation mark"
+goal: |
+  `npm run test:greet` fails. Fix only that failure in src/greet.js, then run the tests again.
+  Do not touch shout().
+scope:
+  allow: ["src/greet.js"]
+  deny: ["test/**", ".commandmate/**"]
+verify:
+  gates: [issue-greet]
+  gateDefinitions:
+    - id: issue-greet
+      command: npm run test:greet
+      timeoutSec: 120
+autoYes:
+  mode: off
+success:
+  requireWorkEvidence: true
+  requireScopeClean: true

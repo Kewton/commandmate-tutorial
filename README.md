@@ -1,50 +1,93 @@
 # CommandMate tutorial
 
-A tiny web app with two bugs left in on purpose. Clone it, point an agent at it,
-and you will have used the core of [CommandMate](https://github.com/Kewton/CommandMate)
-in about ten minutes.
+<!-- TODO(#1808): 確定した定義文に差し替える -->
+**Vibe engineering** is the loop where you stop prompting and start contracting:
+you state the requirement as a contract, an agent does the work, and a
+verification gate decides whether it counts — *requirement → contract → agent →
+verified result*.
+
+This repository is a tiny web app with two bugs left in on purpose, plus the two
+pieces that make that loop real:
+
+| File | What it is |
+|---|---|
+| `.commandmate/verify.yaml` | the repository's verification gate — `npm test` |
+| `.commandmate/tasks/fix-greet.yaml` | a contract for bug 1, gated on `npm run test:greet` |
+| `.commandmate/tasks/fix-shout.yaml` | a contract for bug 2, gated on `npm run test:shout` |
+
+Fork it, point [CommandMate](https://github.com/Kewton/CommandMate) at it, and
+you will have run the loop end to end in about fifteen minutes.
 
 Nothing here is CommandMate-specific. It is an ordinary git repository with no
 dependencies — `npm test` and `npm start` work on their own.
 
 ## Before you start
 
-- **CommandMate is running.** If not: `npx commandmate@latest`
+- **CommandMate 0.24.0+**, running. If not: `npx commandmate@latest`
+  (the contracts here carry their own gate definitions — `gateDefinitions` —
+  which needs 0.24.0 or newer)
 - **Node.js 22+**
 - **One agent CLI**: Claude Code, Codex, or Antigravity
 
-## Step 1 — Clone it into CommandMate
+## Step 1 — Fork it, then register it
 
-In CommandMate, open **Repositories**, choose the clone tab, and paste:
+Fork first. You are going to let an agent commit to this repository, and it
+should be committing to *your* copy.
+
+### Fork & Add (needs `gh` authenticated)
+
+In CommandMate, open **Repositories → Add Repository → Clone URL** and paste:
 
 ```
 https://github.com/Kewton/commandmate-tutorial.git
 ```
 
-It lands inside CommandMate's configured root directory and shows up as a
-session.
+Choose **Fork & Add**. CommandMate forks it to your account with `gh`, clones
+your fork into its configured root directory, and registers it as a session.
 
-## Step 2 — Run it and watch it in the browser
-
-Start the app:
+### Fork by hand
 
 ```bash
-npm start
+gh repo fork Kewton/commandmate-tutorial --clone=false
 ```
 
-It listens on **port 4173**. Register it in CommandMate under **External Apps**
-with a path prefix, and CommandMate will proxy it — no separate tab, and it
-works from your phone too.
+Or use the **Fork** button on GitHub. Then open **Repositories → Add
+Repository → Clone URL** and paste **your fork's** clone URL.
 
-The heading is missing its exclamation mark:
+Either way you end up with one session, on `main`, in CommandMate's root
+directory. Note its worktree id:
 
-> # Hello, CommandMate
+```bash
+commandmate ls
+```
 
-That is bug number one, and you can see it. Leave the page open.
+## Step 2 — Install the two Skills
 
-## Step 3 — Let an agent fix it, then restart
+Open the **Catalog** and install both into this worktree:
 
-Two tests fail on purpose:
+- **`cmate-verify`** — teaches your agent to run the gates and read the exit code
+- **`cmate-task-contract`** — teaches it to work inside an execution contract
+
+From the CLI, that is:
+
+```bash
+commandmate skill install cmate-verify --worktree <worktree-id>
+commandmate skill install cmate-task-contract --worktree <worktree-id>
+```
+
+## Step 3 — Run the gate before you touch anything
+
+```bash
+commandmate verify <worktree-id>
+```
+
+```
+✖ unit  (npm test)
+exit 20
+```
+
+**Exit 20 means a gate failed**, and that is the correct starting point. The
+gate is `npm test`, and two tests fail on purpose:
 
 ```bash
 npm test
@@ -58,27 +101,37 @@ npm test
     Error: shout() is not implemented yet
 ```
 
-Open the session and ask your agent:
+You now have a red gate and a number to watch. Everything after this is about
+turning that number into 0 — twice, independently.
 
-> `npm test` fails. Fix the first failure only, then run the tests again.
+## Step 4 — Hand the first contract to an agent
 
-The fix is one character in `src/greet.js`. The point is not the difficulty — it
-is watching the agent run the tests, change the code, and re-run them while you
-watch from the browser (or your phone).
+Do not describe the bug in a chat message. Send the contract:
 
-**Now restart the app** (`Ctrl+C`, then `npm start` again) and reload the page:
+```bash
+commandmate send <worktree-id> --contract .commandmate/tasks/fix-greet.yaml
+```
 
-> # Hello, CommandMate!
+CommandMate records a task, then hands the agent the contract's goal along with
+its scope — `src/greet.js` only, with `test/**` and `.commandmate/**` denied, so
+the agent cannot "fix" the test instead of the code. Then wait for it:
 
-That is the loop: **an agent changes code → you restart → you see the result.**
+```bash
+commandmate wait <worktree-id> --verify
+```
 
-> **Why the restart?** `src/server.js` imports `greet` once, when the process
-> starts, so a running server keeps serving the old code no matter what is on
-> disk. Nothing here reloads for you. This is not a quirk of the tutorial — it
-> is the same reason a real dev server needs restarting when you change code it
-> loaded at boot.
+```
+✔ issue-greet  (npm run test:greet)
+exit 0
+```
 
-## Step 4 — Go parallel with a worktree
+**Exit 0.** Note what was judged: the contract's own gate, `issue-greet` →
+`npm run test:greet` — not the repository-wide `unit` gate. That is what
+`gateDefinitions` in the contract buys you. `npm test` is still red, because
+`shout()` is still unimplemented, and that is fine. One contract, one gate, one
+verdict.
+
+## Step 5 — Go parallel with a second contract
 
 CommandMate runs **one session per git worktree**, side by side. It *discovers*
 worktrees — it does not create them. So have your agent create one.
@@ -104,29 +157,86 @@ Paste this instead:
 
 ### Then
 
-Go to **Repositories → Sync**. The new worktree appears as a second session.
-Ask *that* session to implement `shout()` — the second failing test — while the
-first session stays where it is.
+Go to **Repositories → Sync All** (or run `commandmate sync`). The new worktree
+appears as a second session. Send it the second contract:
 
-Two branches, two agents, one browser.
+```bash
+commandmate send <shout-worktree-id> --contract .commandmate/tasks/fix-shout.yaml
+commandmate wait <shout-worktree-id> --verify
+```
+
+```
+✔ issue-shout  (npm run test:shout)
+exit 0
+```
+
+Two branches, two agents, two gates — and neither one could have passed by
+breaking the other, because each contract only allows `src/greet.js` and only
+judges its own test file.
+
+## Step 6 — Read the record
+
+Nothing above depended on you watching it happen. The verdicts are stored:
+
+```bash
+commandmate verify history --worktree <worktree-id>
+commandmate task list <worktree-id>
+commandmate task show <task-id>
+```
+
+`task show` gives you the contract, the run that judged it, and the gate log
+tails. That is the artifact you review — not a chat transcript.
 
 ## What you just used
 
 | Step | CommandMate feature |
 |---|---|
-| 1 | Clone a repository into the managed root |
-| 2 | External Apps — proxy your dev server through CommandMate |
-| 3 | Run an agent CLI in a session, from any browser |
-| 4 | One session per worktree, running in parallel |
+| 1 | Fork & Add — fork and register a repository into the managed root |
+| 2 | Catalog — install Skills into a worktree |
+| 3 | `verify` — run the declared gates, exit 20 on failure |
+| 4 | `send --contract` / `wait --verify` — contract in, verdict out |
+| 5 | One session per worktree, running in parallel |
+| 6 | `verify history` / `task show` — the durable record |
+
+## Optional — watch it in the browser
+
+The app is a real server, so you can see the first bug instead of reading about
+it. Before Step 4, start it:
+
+```bash
+npm start
+```
+
+It listens on **port 4173**. Register it in CommandMate under **External Apps**
+with a path prefix, and CommandMate will proxy it — no separate tab, and it
+works from your phone too.
+
+The heading is missing its exclamation mark:
+
+> # Hello, CommandMate
+
+Leave the page open, run Step 4, then **restart the app** (`Ctrl+C`, then
+`npm start` again) and reload:
+
+> # Hello, CommandMate!
+
+> **Why the restart?** `src/server.js` imports `greet` once, when the process
+> starts, so a running server keeps serving the old code no matter what is on
+> disk. Nothing here reloads for you. This is not a quirk of the tutorial — it
+> is the same reason a real dev server needs restarting when you change code it
+> loaded at boot.
 
 ## Notes
 
 - The worktree must live **inside CommandMate's root directory** — a sibling of
   this repository is inside it. CommandMate refuses to register paths outside
   that root.
-- Antigravity's non-interactive mode (`agy -p`) waits on a trust prompt on first
-  run in a new project. Answer it once in interactive mode, or pass
+- Antigravity's non-interactive mode (`agy --print`) waits on a trust prompt on
+  first run in a new project. Answer it once in interactive mode, or pass
   `--dangerously-skip-permissions` if you understand what it skips.
+- `.commandmate/verify.yaml` and `.commandmate/tasks/*.yaml` are tracked in git;
+  everything else CommandMate writes under `.commandmate/` is local runtime data
+  and is ignored.
 
 ## Cleaning up
 
